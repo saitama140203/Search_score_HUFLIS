@@ -129,7 +129,7 @@ def create_overview_metrics(stats):
         st.metric("📊 Số môn học", len(stats['by_subject']))
 
 def main():
-    st.markdown('<h1 style="text-align: center; color: #1f77b4;">📊 HỆ THỐNG QUẢN LÝ ĐIỂM - ĐHNN Huế</h1>', 
+    st.markdown('<h1 style="text-align: center; color: #1f77b4;">📊 HỆ THỐNG XEM ĐIỂM - ĐHNN Huế</h1>', 
                 unsafe_allow_html=True)
     st.markdown('<p style="text-align: center; color: #666;">Phiên Bản của Apus- hơi lỏ, thông cảm</p>', 
                 unsafe_allow_html=True)
