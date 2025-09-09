@@ -185,7 +185,7 @@ def main():
             main_search_name = st.text_input(
                 "🏷️ Tìm theo họ tên:", 
                 placeholder="Ví dụ: Thế Phú, Lê Thế",
-                help="Tìm kiếm thông minh: có thể tìm từng từ riêng lẻ, không phân biệt hoa thường"
+                help="Tìm kiếm thông minh: tìm từng từ riêng lẻ, không phân biệt hoa thường, bỏ dấu thanh điệu (thuý = thúy)"
             )
         
         with col_main2:
@@ -218,26 +218,48 @@ def main():
         
         # Áp dụng tìm kiếm tên (thông minh)
         if main_search_name.strip():
+            def normalize_vietnamese(text):
+                """Chuẩn hóa tiếng Việt: bỏ dấu, chuyển thường"""
+                import unicodedata
+                # Loại bỏ dấu thanh điệu
+                text = unicodedata.normalize('NFD', text)
+                text = ''.join(char for char in text if unicodedata.category(char) != 'Mn')
+                return text.lower()
+            
             def smart_name_search(name_to_search, search_term):
-                """Tìm kiếm thông minh: hỗ trợ tìm từng từ riêng lẻ"""
+                """Tìm kiếm thông minh: hỗ trợ tìm từng từ riêng lẻ, bỏ dấu thanh điệu"""
                 name_lower = name_to_search.lower()
                 search_lower = search_term.lower()
                 
-                # Tìm chính xác chuỗi con
+                # Tìm chính xác chuỗi con (có dấu)
                 if search_lower in name_lower:
                     return True
                 
-                # Tìm từng từ riêng lẻ
+                # Tìm không dấu
+                name_no_accent = normalize_vietnamese(name_to_search)
+                search_no_accent = normalize_vietnamese(search_term)
+                
+                if search_no_accent in name_no_accent:
+                    return True
+                
+                # Tìm từng từ riêng lẻ (có dấu)
                 search_words = search_lower.split()
                 name_words = name_lower.split()
                 
-                # Kiểm tra tất cả từ tìm kiếm có trong tên không
                 for search_word in search_words:
                     found = False
                     for name_word in name_words:
                         if search_word in name_word or name_word in search_word:
                             found = True
                             break
+                    if not found:
+                        # Thử tìm không dấu
+                        search_word_no_accent = normalize_vietnamese(search_word)
+                        for name_word in name_words:
+                            name_word_no_accent = normalize_vietnamese(name_word)
+                            if search_word_no_accent in name_word_no_accent or name_word_no_accent in search_word_no_accent:
+                                found = True
+                                break
                     if not found:
                         return False
                 return True
@@ -328,7 +350,7 @@ def main():
         col_search1, col_search2 = st.columns(2)
         
         with col_search1:
-            search_name = st.text_input("🏷️ Tìm theo tên sinh viên:", placeholder="Ví dụ: Thế Phú, Lê Thế", help="Tìm kiếm thông minh: có thể tìm từng từ riêng lẻ")
+            search_name = st.text_input("🏷️ Tìm theo tên sinh viên:", placeholder="Ví dụ: thuý ngân, Thế Phú", help="Tìm kiếm thông minh: tìm từng từ riêng lẻ, bỏ dấu thanh điệu")
         
         with col_search2:
             search_ma_sv = st.text_input("🆔 Tìm theo mã sinh viên:", placeholder="Nhập mã sinh viên...")
@@ -445,25 +467,46 @@ def main():
         def matches_search(record, search_name, search_ma_sv):
             """Kiểm tra xem record có match với tìm kiếm không (tìm kiếm thông minh)."""
             if search_name.strip():
+                def normalize_vietnamese(text):
+                    """Chuẩn hóa tiếng Việt: bỏ dấu, chuyển thường"""
+                    import unicodedata
+                    text = unicodedata.normalize('NFD', text)
+                    text = ''.join(char for char in text if unicodedata.category(char) != 'Mn')
+                    return text.lower()
+                
                 def smart_name_search(name_to_search, search_term):
                     name_lower = name_to_search.lower()
                     search_lower = search_term.lower()
                     
-                    # Tìm chính xác chuỗi con
+                    # Tìm chính xác chuỗi con (có dấu)
                     if search_lower in name_lower:
                         return True
                     
-                    # Tìm từng từ riêng lẻ
+                    # Tìm không dấu
+                    name_no_accent = normalize_vietnamese(name_to_search)
+                    search_no_accent = normalize_vietnamese(search_term)
+                    
+                    if search_no_accent in name_no_accent:
+                        return True
+                    
+                    # Tìm từng từ riêng lẻ (có dấu)
                     search_words = search_lower.split()
                     name_words = name_lower.split()
                     
-                    # Kiểm tra tất cả từ tìm kiếm có trong tên không
                     for search_word in search_words:
                         found = False
                         for name_word in name_words:
                             if search_word in name_word or name_word in search_word:
                                 found = True
                                 break
+                        if not found:
+                            # Thử tìm không dấu
+                            search_word_no_accent = normalize_vietnamese(search_word)
+                            for name_word in name_words:
+                                name_word_no_accent = normalize_vietnamese(name_word)
+                                if search_word_no_accent in name_word_no_accent or name_word_no_accent in search_word_no_accent:
+                                    found = True
+                                    break
                         if not found:
                             return False
                     return True
