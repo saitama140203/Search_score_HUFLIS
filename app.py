@@ -171,7 +171,7 @@ def main():
             for hk, count in stats['by_semester'].most_common():
                 st.write(f"**{hk}**: {count:,} sinh viên")
         
-        st.subheader("📚 Top 10 môn học")
+        st.subheader("📚 Top 10 ngành có nhiều sv nhất")
         for i, (mon, count) in enumerate(stats['by_subject'].most_common(10), 1):
             st.write(f"{i}. **{mon}**: {count} sinh viên")
     
@@ -384,7 +384,7 @@ def main():
         col_search1, col_search2 = st.columns(2)
         
         with col_search1:
-            search_name = st.text_input("🏷️ Tìm theo tên sinh viên:", placeholder="Ví dụ: thuy ngan, the phu", help="Tìm kiếm đơn giản: bỏ dấu, chuyển thường, tìm chính xác")
+            search_name = st.text_input("🏷️ Tìm theo tên sinh viên:", placeholder="Ví dụ: the phu", help="Tìm kiếm đơn giản: bỏ dấu, chuyển thường, tìm chính xác")
         
         with col_search2:
             search_ma_sv = st.text_input("🆔 Tìm theo mã sinh viên:", placeholder="Nhập mã sinh viên...")
