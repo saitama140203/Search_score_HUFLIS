@@ -184,8 +184,8 @@ def main():
         with col_main1:
             main_search_name = st.text_input(
                 "🏷️ Tìm theo họ tên:", 
-                placeholder="Ví dụ: Thế Phú, Lê Thế",
-                help="Tìm kiếm thông minh: tìm từng từ riêng lẻ, không phân biệt hoa thường, bỏ dấu thanh điệu (thuý = thúy)"
+                placeholder="Ví dụ: ho thi thuy ngan",
+                help="Tìm kiếm thông minh: kết quả được sắp xếp theo độ chính xác (🎯 khớp hoàn toàn → 🔸 khớp từ đầu → 📍 khớp một phần)"
             )
         
         with col_main2:
@@ -216,56 +216,59 @@ def main():
         # Tìm kiếm
         search_results = data
         
-        # Áp dụng tìm kiếm tên (thông minh)
+        # Áp dụng tìm kiếm tên (chuẩn xác với ranking)
         if main_search_name.strip():
-            def normalize_vietnamese(text):
-                """Chuẩn hóa tiếng Việt: bỏ dấu, chuyển thường"""
+            def normalize_text(text):
+                """Chuẩn hóa text: bỏ dấu, chuyển thường, loại bỏ khoảng trắng thừa"""
                 import unicodedata
-                # Loại bỏ dấu thanh điệu
+                # Bỏ dấu thanh điệu
                 text = unicodedata.normalize('NFD', text)
                 text = ''.join(char for char in text if unicodedata.category(char) != 'Mn')
-                return text.lower()
+                # Chuyển thường và loại bỏ khoảng trắng thừa
+                return ' '.join(text.lower().split())
             
-            def smart_name_search(name_to_search, search_term):
-                """Tìm kiếm thông minh: hỗ trợ tìm từng từ riêng lẻ, bỏ dấu thanh điệu"""
-                name_lower = name_to_search.lower()
-                search_lower = search_term.lower()
+            def calculate_match_score(name_to_search, search_term):
+                """Tính điểm khớp: càng khớp chính xác càng cao điểm"""
+                name_normalized = normalize_text(name_to_search)
+                search_normalized = normalize_text(search_term)
                 
-                # Tìm chính xác chuỗi con (có dấu)
-                if search_lower in name_lower:
-                    return True
+                if search_normalized not in name_normalized:
+                    return 0
                 
-                # Tìm không dấu
-                name_no_accent = normalize_vietnamese(name_to_search)
-                search_no_accent = normalize_vietnamese(search_term)
+                # Điểm cơ bản
+                score = 1
                 
-                if search_no_accent in name_no_accent:
-                    return True
+                # Bonus nếu khớp hoàn toàn
+                if search_normalized == name_normalized:
+                    score += 100
                 
-                # Tìm từng từ riêng lẻ (có dấu)
-                search_words = search_lower.split()
-                name_words = name_lower.split()
+                # Bonus nếu khớp từ đầu
+                elif name_normalized.startswith(search_normalized):
+                    score += 50
                 
-                for search_word in search_words:
-                    found = False
-                    for name_word in name_words:
-                        if search_word in name_word or name_word in search_word:
-                            found = True
-                            break
-                    if not found:
-                        # Thử tìm không dấu
-                        search_word_no_accent = normalize_vietnamese(search_word)
-                        for name_word in name_words:
-                            name_word_no_accent = normalize_vietnamese(name_word)
-                            if search_word_no_accent in name_word_no_accent or name_word_no_accent in search_word_no_accent:
-                                found = True
-                                break
-                    if not found:
-                        return False
-                return True
+                # Bonus nếu khớp từ cuối
+                elif name_normalized.endswith(search_normalized):
+                    score += 30
+                
+                # Bonus theo độ dài khớp
+                score += len(search_normalized) * 2
+                
+                # Penalty theo độ dài chênh lệch
+                length_diff = len(name_normalized) - len(search_normalized)
+                score -= length_diff
+                
+                return score
             
-            search_results = [r for r in search_results 
-                            if smart_name_search(r.get('Họ và tên', ''), main_search_name)]
+            # Tìm và sắp xếp theo điểm khớp
+            matches_with_scores = []
+            for record in search_results:
+                score = calculate_match_score(record.get('Họ và tên', ''), main_search_name)
+                if score > 0:
+                    matches_with_scores.append((record, score))
+            
+            # Sắp xếp theo điểm từ cao đến thấp
+            matches_with_scores.sort(key=lambda x: x[1], reverse=True)
+            search_results = [match[0] for match in matches_with_scores]
         
         # Áp dụng tìm kiếm mã SV
         if main_search_ma_sv.strip():
@@ -310,9 +313,40 @@ def main():
             # Xác định số lượng kết quả hiển thị
             display_limit = len(search_results) if show_all else min(20, len(search_results))
             
+            # Tính điểm khớp để hiển thị
+            def get_match_score_for_display(name, search_term):
+                if not search_term.strip():
+                    return None
+                
+                def normalize_text(text):
+                    import unicodedata
+                    text = unicodedata.normalize('NFD', text)
+                    text = ''.join(char for char in text if unicodedata.category(char) != 'Mn')
+                    return ' '.join(text.lower().split())
+                
+                name_normalized = normalize_text(name)
+                search_normalized = normalize_text(search_term)
+                
+                if search_normalized == name_normalized:
+                    return "🎯 Khớp hoàn toàn"
+                elif name_normalized.startswith(search_normalized):
+                    return "🔸 Khớp từ đầu"
+                elif name_normalized.endswith(search_normalized):
+                    return "🔹 Khớp từ cuối"
+                elif search_normalized in name_normalized:
+                    return "📍 Khớp một phần"
+                else:
+                    return None
+            
             # Hiển thị chi tiết từng kết quả
             for i, record in enumerate(search_results[:display_limit]):
-                with st.expander(f"#{i+1}: {record.get('Họ và tên', 'N/A')} - {record.get('Mã SV', 'N/A')}", expanded=False):
+                match_indicator = ""
+                if main_search_name.strip():
+                    match_type = get_match_score_for_display(record.get('Họ và tên', ''), main_search_name)
+                    if match_type:
+                        match_indicator = f" {match_type}"
+                
+                with st.expander(f"#{i+1}: {record.get('Họ và tên', 'N/A')} - {record.get('Mã SV', 'N/A')}{match_indicator}", expanded=False):
                     col_detail1, col_detail2 = st.columns(2)
                     
                     with col_detail1:
@@ -350,7 +384,7 @@ def main():
         col_search1, col_search2 = st.columns(2)
         
         with col_search1:
-            search_name = st.text_input("🏷️ Tìm theo tên sinh viên:", placeholder="Ví dụ: thuý ngân, Thế Phú", help="Tìm kiếm thông minh: tìm từng từ riêng lẻ, bỏ dấu thanh điệu")
+            search_name = st.text_input("🏷️ Tìm theo tên sinh viên:", placeholder="Ví dụ: thuy ngan, the phu", help="Tìm kiếm đơn giản: bỏ dấu, chuyển thường, tìm chính xác")
         
         with col_search2:
             search_ma_sv = st.text_input("🆔 Tìm theo mã sinh viên:", placeholder="Nhập mã sinh viên...")
@@ -465,53 +499,22 @@ def main():
         
         # Hàm hỗ trợ lọc
         def matches_search(record, search_name, search_ma_sv):
-            """Kiểm tra xem record có match với tìm kiếm không (tìm kiếm thông minh)."""
+            """Kiểm tra xem record có match với tìm kiếm không (tìm kiếm đơn giản)."""
             if search_name.strip():
-                def normalize_vietnamese(text):
-                    """Chuẩn hóa tiếng Việt: bỏ dấu, chuyển thường"""
+                def normalize_text(text):
+                    """Chuẩn hóa text: bỏ dấu, chuyển thường, loại bỏ khoảng trắng thừa"""
                     import unicodedata
                     text = unicodedata.normalize('NFD', text)
                     text = ''.join(char for char in text if unicodedata.category(char) != 'Mn')
-                    return text.lower()
+                    return ' '.join(text.lower().split())
                 
-                def smart_name_search(name_to_search, search_term):
-                    name_lower = name_to_search.lower()
-                    search_lower = search_term.lower()
-                    
-                    # Tìm chính xác chuỗi con (có dấu)
-                    if search_lower in name_lower:
-                        return True
-                    
-                    # Tìm không dấu
-                    name_no_accent = normalize_vietnamese(name_to_search)
-                    search_no_accent = normalize_vietnamese(search_term)
-                    
-                    if search_no_accent in name_no_accent:
-                        return True
-                    
-                    # Tìm từng từ riêng lẻ (có dấu)
-                    search_words = search_lower.split()
-                    name_words = name_lower.split()
-                    
-                    for search_word in search_words:
-                        found = False
-                        for name_word in name_words:
-                            if search_word in name_word or name_word in search_word:
-                                found = True
-                                break
-                        if not found:
-                            # Thử tìm không dấu
-                            search_word_no_accent = normalize_vietnamese(search_word)
-                            for name_word in name_words:
-                                name_word_no_accent = normalize_vietnamese(name_word)
-                                if search_word_no_accent in name_word_no_accent or name_word_no_accent in search_word_no_accent:
-                                    found = True
-                                    break
-                        if not found:
-                            return False
-                    return True
+                def simple_search(name_to_search, search_term):
+                    """Tìm kiếm đơn giản: chuẩn hóa cả hai và tìm chính xác"""
+                    name_normalized = normalize_text(name_to_search)
+                    search_normalized = normalize_text(search_term)
+                    return search_normalized in name_normalized
                 
-                if not smart_name_search(record.get('Họ và tên', ''), search_name):
+                if not simple_search(record.get('Họ và tên', ''), search_name):
                     return False
             
             if search_ma_sv.strip():
