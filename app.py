@@ -184,7 +184,7 @@ def main():
         with col_main1:
             main_search_name = st.text_input(
                 "🏷️ Tìm theo họ tên:", 
-                placeholder="Ví dụ: ho thi thuy ngan",
+                placeholder="Ví dụ: Le the phu, Lê Thế Phú",
                 help="Tìm kiếm thông minh: kết quả được sắp xếp theo độ chính xác (🎯 khớp hoàn toàn → 🔸 khớp từ đầu → 📍 khớp một phần)"
             )
         
